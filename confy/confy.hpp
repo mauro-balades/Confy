@@ -274,18 +274,20 @@ private:
   */
 class Result {
 public:
-  Result(std::vector<std::shared_ptr<Value>> root, std::string config, std::vector<Error> errors = {});
+  using RootType = std::pair<std::string, std::shared_ptr<Value>>;
+
+  Result(std::vector<RootType> root, std::string config, std::vector<Error> errors = {});
   virtual ~Result() = default;
 
-  std::vector<std::shared_ptr<Value>> get_root() const;
+  std::vector<RootType> get_root() const;
   std::string get_config() const;
   std::vector<Error> get_errors() const;
 
   bool has_errors() const;
 
-  static Result create(std::vector<std::shared_ptr<Value>> root, std::string config, std::vector<Error> errors = {});
+  static Result create(std::vector<RootType> root, std::string config, std::vector<Error> errors = {});
 private:
-  std::vector<std::shared_ptr<Value>> root;
+  std::vector<RootType> root;
   std::string config;
   std::vector<Error> errors;
 };

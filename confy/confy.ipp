@@ -245,10 +245,10 @@ std::shared_ptr<Number> Number::create(std::shared_ptr<Type> type, double value)
   return std::make_shared<Number>(type, value);
 }
 
-Result::Result(std::vector<std::shared_ptr<Value>> values, std::string config, std::vector<Error> errors)
+Result::Result(std::vector<Result::RootType> values, std::string config, std::vector<Error> errors)
   : root(values), config(config), errors(errors) {}
 
-std::vector<std::shared_ptr<Value>> Result::get_root() const {
+std::vector<Result::RootType> Result::get_root() const {
   return root;
 }
 
@@ -264,7 +264,7 @@ bool Result::has_errors() const {
   return !errors.empty();
 }
 
-Result Result::create(std::vector<std::shared_ptr<Value>> values, std::string config, std::vector<Error> errors) {
+Result Result::create(std::vector<RootType> values, std::string config, std::vector<Error> errors) {
   return Result(values, config, errors);
 }
 
@@ -302,13 +302,26 @@ std::optional<std::string> get_identifier(const std::string& config, int& char_i
 }
 
 #define PARSER_NEXT_CHAR() \
+  SKIP_WHITESPACE(); \
   if (char_index >= config.size()) { \
     return EXIT_FAILURE; \
   } \
   pos.column++; \
   char_index++;
 
+#define SKIP_WHITESPACE() \
+  while (config[char_index] == ' ' || config[char_index] == '\t' || config[char_index] == '\n') { \
+    if (config[char_index] == '\n') { \
+      pos.line++; \
+      pos.column = 1; \
+    } else { \
+      pos.column++; \
+    } \
+    char_index++; \
+  }
+
 #define PARSER_EXPECT_CHAR(c) \
+  SKIP_WHITESPACE(); \
   if (config[char_index] != c) { \
     return create_error("Expected '" + std::string(1, c) + "' and got '" + std::string(1, config[char_index]) + "'", pos, errors); \
   } \
@@ -319,27 +332,46 @@ bool create_error(const std::string& message, Error::Position& pos, std::vector<
   return EXIT_FAILURE;
 }
 
-bool parse_global_rule(Interface& root, const std::string& config, 
-  std::vector<std::shared_ptr<Value>>& values, 
+std::optional<std::shared_ptr<Value>> parse_value(Interface& root, const std::string& config, 
+  std::vector<Result::RootType>& values, 
   std::vector<Error>& errors, Error::Position& pos, 
-  int& char_index) {
+  int& char_index, const std::optional<std::string>& identifier) {
+    return std::nullopt;
+  }
+
+bool parse_global_rule(Interface& root, const std::string& config, 
+  std::vector<Result::RootType>& values, 
+  std::vector<Error>& errors, Error::Position& pos, 
+  int& char_index, bool is_global = false) {
   auto identifier = get_identifier(config, char_index, pos);
   if (!identifier) {
     return create_error("Expected identifier and got '" + std::string(1, config[char_index]) + "'", pos, errors);
   }
 
-  PARSER_EXPECT_CHAR(':');
+  SKIP_WHITESPACE();
+  if (config[char_index] == ':' && is_global) {
+    PARSER_NEXT_CHAR();
+    auto val = parse_value(root, config, values, errors, pos, char_index, identifier);
+    if (!val) {
+      return EXIT_FAILURE;
+    }
+    values.push_back(std::make_pair(*identifier, *val));
+    return EXIT_SUCCESS;
+  }
+
+  PARSER_EXPECT_CHAR('{');
 
   auto type = root.get(*identifier);
   if (!type) {
     return create_error("Unknown identifier '" + *identifier + "'", pos, errors);
   }
 
+  PARSER_EXPECT_CHAR('}');
   assert(false);
 }
 
 bool parse_global(Interface& root, const std::string& config, 
-  std::vector<std::shared_ptr<Value>>& values, 
+  std::vector<Result::RootType>& values, 
   std::vector<Error>& errors, Error::Position& pos, 
   int& char_index) {
   while (char_index < config.size()) {
@@ -360,7 +392,7 @@ bool parse_global(Interface& root, const std::string& config,
         return EXIT_FAILURE;
 
       default: {
-        return parse_global_rule(root, config, values, errors, pos, char_index);
+        return parse_global_rule(root, config, values, errors, pos, char_index, true);
       }
     }
   }
@@ -372,7 +404,7 @@ bool parse_global(Interface& root, const std::string& config,
 
 Result parse(Interface& root, const std::string& config) {
   std::vector<Error> errors;
-  std::vector<std::shared_ptr<Value>> values;
+  std::vector<Result::RootType> values;
   Error::Position pos = {1, 1};
   int char_index = 0;
   while (true) {

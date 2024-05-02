@@ -8,9 +8,7 @@ int main() {
     {"key1", confy::Type::String},
   });
 
-  auto result = confy::parse(root, R"({
-    "key1": "value"
-  })");
+  auto result = confy::parse(root, R"(hello: "world")");
 
   if (result.has_errors()) {
     for (const auto& error : result.get_errors()) {
