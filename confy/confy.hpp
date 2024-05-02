@@ -30,7 +30,6 @@
  * Notices: We require the c++ standard 17 or higher. 
  *   We make use of smart pointers and other modern c++ features.
  * You can define the following macros to add some custom behavior:
- *   - CONFY_NO_EXCEPTIONS: If you define this macro, we will not use exceptions.
  *   - CONFY_NO_NAMESPACE: If you define this macro, we will declare the namespace confy. (not recommended)
  *   - CONFY_JUST_DECLARATIONS: If you define this macro, we will not define the implementation of the functions.
  *   - CONFY_NO_ASSERT: If you define this macro, we will not use the assert macro.
@@ -44,16 +43,13 @@
 #include <string>
 #include <vector>
 #include <memory>
-
-#ifndef CONFY_NO_EXCEPTIONS
-#include <stdexcept>
-#endif
+#include <unordered_map>
 
 #ifndef CONFY_NO_ASSERT
 #include <cassert>
-#define CONFY_ASSERT(x) assert(x)
+#define CONFY_ASSERT(x, m) assert((x) && (m))
 #else
-#define CONFY_ASSERT(x)
+#define CONFY_ASSERT(x, m)
 #endif
 
 namespace confy {
@@ -164,6 +160,144 @@ private:
   std::vector<Global> global;
 };
 
+class Error : public std::exception {
+public:
+  struct Position {
+    int line;
+    int column;
+  };
+
+  Error(std::string message, Position position);
+  virtual ~Error() = default;
+
+  std::string get_message() const;
+  Position get_position() const;
+
+  virtual const char* what() const noexcept override;
+private:
+  std::string message;
+  Position position;
+};  
+
+class Value {
+public:
+  Value(std::shared_ptr<Type> type);
+  virtual ~Value() = default;
+
+  std::shared_ptr<Type> get_type() const;
+  
+  virtual bool is_string() const;
+  virtual bool is_number() const;
+  virtual bool is_object() const;
+  virtual bool is_array() const;
+
+  virtual std::string as_string() const;
+  virtual double as_number() const;
+  virtual std::unordered_map<std::string, std::shared_ptr<Value>> as_object() const;
+  virtual std::vector<std::shared_ptr<Value>> as_array() const;
+
+  static std::shared_ptr<Value> create(std::shared_ptr<Type> type);
+private:
+  std::shared_ptr<Type> type;
+};
+
+class Object final : public Value {
+public:
+  Object(std::shared_ptr<Type> type, std::unordered_map<std::string, std::shared_ptr<Value>> values);
+  virtual ~Object() = default;
+
+  std::unordered_map<std::string, std::shared_ptr<Value>> get_values() const;
+
+  virtual bool is_object() const override;
+  virtual std::unordered_map<std::string, std::shared_ptr<Value>> as_object() const override;
+
+  static std::shared_ptr<Object> create(std::shared_ptr<Type>, std::unordered_map<std::string, std::shared_ptr<Value>>& values);
+private:
+  std::unordered_map<std::string, std::shared_ptr<Value>> values;
+};
+
+class Array final : public Value {
+public:
+  Array(std::shared_ptr<Type> type, std::vector<std::shared_ptr<Value>> values);
+  virtual ~Array() = default;
+
+  std::vector<std::shared_ptr<Value>> get_values() const;
+
+  virtual bool is_array() const override;
+  virtual std::vector<std::shared_ptr<Value>> as_array() const override;
+
+  static std::shared_ptr<Array> create(std::shared_ptr<Type>, std::vector<std::shared_ptr<Value>>& values);
+private:
+  std::vector<std::shared_ptr<Value>> values;
+};
+
+class String final : public Value {
+public:
+  String(std::shared_ptr<Type> type, std::string value);
+  virtual ~String() = default;
+
+  std::string get_value() const;
+
+  virtual bool is_string() const override;
+  virtual std::string as_string() const override;
+
+  static std::shared_ptr<String> create(std::shared_ptr<Type>, std::string value);
+private:
+  std::string value;
+};
+
+class Number final : public Value {
+public:
+  Number(std::shared_ptr<Type> type, double value);
+  virtual ~Number() = default;
+
+  double get_value() const;
+
+  virtual bool is_number() const override;
+  virtual double as_number() const override;
+
+  static std::shared_ptr<Number> create(std::shared_ptr<Type>, double value);
+private:
+  double value;
+};
+
+/**
+  * @brief The result of the parser.
+  * 
+  * This class represents the result of the parser.
+  * It will contain the root interface and the parsed configuration.
+  * 
+  * It can also contain the error messages if the configuration is incorrect.
+  */
+class Result {
+public:
+  Result(std::shared_ptr<Interface> root, std::string config);
+  Result(std::shared_ptr<Interface> root, std::string config, std::vector<Error> errors);
+  virtual ~Result() = default;
+
+  std::shared_ptr<Interface> get_root() const;
+  std::string get_config() const;
+  std::vector<Error> get_errors() const;
+
+  bool has_errors() const;
+private:
+  std::vector<std::shared_ptr<Value>> root;
+  std::string config;
+  std::vector<Error> errors;
+};
+
+
+/**
+ * @brief Parse a configuration string with the given root interface.
+ * 
+ * This function will parse the configuration string with the given root interface.
+ * 
+ * @param root The root interface to use.
+ * @param config The configuration string to parse.
+ * @return true if the configuration is correct, false otherwise.
+ */
+Result parse(Interface root, const std::string& config);
+
 namespace utils {
 template<typename T, typename U>
 [[nodiscard]] std::shared_ptr<T> as(std::shared_ptr<U>& type) {
@@ -176,7 +310,7 @@ template<typename T, typename U>
 }
 
 template<typename T, typename U>
-[[nodiscard]] bool is(const std::shared_ptr<U>& type) {
+[[nodiscard]] bool is(std::shared_ptr<U>& type) {
   return as<T>(type) != nullptr;
 }
 
