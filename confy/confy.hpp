@@ -33,6 +33,7 @@
  *   - CONFY_NO_EXCEPTIONS: If you define this macro, we will not use exceptions.
  *   - CONFY_NO_USING_NAMESPACE: If you define this macro, we will not use the using namespace confy. (not recommended)
  *   - CONFY_JUST_DECLARATIONS: If you define this macro, we will not define the implementation of the functions.
+ *   - CONFY_NO_ASSERT: If you define this macro, we will not use the assert macro.
  */
 
 #endif // Finish License Check!
@@ -52,7 +53,76 @@
 using namespace confy;
 #endif
 
+#ifndef CONFY_NO_ASSERT
+#include <cassert>
+#define CONFY_ASSERT(x) assert(x)
+#else
+#define CONFY_ASSERT(x)
+#endif
+
 namespace confy {
+
+class Interface;
+class Type;
+
+/**
+ * @brief A type class to represent the type of a key in the configuration.
+ *
+ * This is to make sure that the configuration is correct and that the parser
+ * will not throw an exception if the key satisfies the schema.
+ */
+class Type {
+public:
+  Type();
+  Type(const Type& other);
+  Type(Type&& other);
+
+  virtual ~Type();
+  virtual std::string name() const = 0;
+  virtual bool is(const Type& other) const;
+  bool is(const std::shared_ptr<Type>& other) const;
+};
+
+class StringType final : public Type {
+public:
+  virtual std::string name() const override;
+  virtual bool is(const Type& other) const override;
+};
+
+class NumType final : public Type {
+public:
+  virtual std::string name() const override;
+  virtual bool is(const Type& other) const override;
+};
+
+class ObjectType final : public Type {
+public:
+  using TypePair = std::pair<std::string, std::shared_ptr<Type>>;
+
+  ObjectType(std::vector<TypePair> types);
+  virtual std::string name() const override;
+  virtual bool is(const Type& other) const override;
+  
+  std::shared_ptr<Type> get(const std::string& key) const;
+  bool has(const std::string& key) const;
+
+  virtual ~ObjectType();
+private:
+  std::vector<TypePair> types;
+};
+
+class ArrayType final : public Type {
+public:
+  ArrayType(std::shared_ptr<Type> type);
+  virtual std::string name() const override;
+  virtual bool is(const Type& other) const override;
+
+  std::shared_ptr<Type> get() const;
+
+  virtual ~ArrayType();
+private:
+  std::shared_ptr<Type> type;
+};
 
 /**
  * @brief The main class to manage the configuration root interface.
