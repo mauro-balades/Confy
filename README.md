@@ -1,5 +1,5 @@
 
-<img src="assets/logo.png" height="200" align="left"/>
+<img src="assets/logo.png" height="150" align="left"/>
 
 **Confy**
 Configure projects effortlessly! 💻
