@@ -1,0 +1,2 @@
+# Confy
+Configure projects effortlessly! 💻
