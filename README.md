@@ -15,7 +15,7 @@ This a project configuration file parser and system originally created for the [
 
 ## Show Me The Syntax!
 
-```json
+```js
 project {
     name: "MyLib"
     version: "1.0.0"
