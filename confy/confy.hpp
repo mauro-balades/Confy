@@ -31,7 +31,7 @@
  *   We make use of smart pointers and other modern c++ features.
  * You can define the following macros to add some custom behavior:
  *   - CONFY_NO_EXCEPTIONS: If you define this macro, we will not use exceptions.
- *   - CONFY_NO_USING_NAMESPACE: If you define this macro, we will not use the using namespace confy. (not recommended)
+ *   - CONFY_NO_NAMESPACE: If you define this macro, we will declare the namespace confy. (not recommended)
  *   - CONFY_JUST_DECLARATIONS: If you define this macro, we will not define the implementation of the functions.
  *   - CONFY_NO_ASSERT: If you define this macro, we will not use the assert macro.
  */
@@ -47,10 +47,6 @@
 
 #ifndef CONFY_NO_EXCEPTIONS
 #include <stdexcept>
-#endif
-
-#ifndef CONFY_NO_USING_NAMESPACE
-using namespace confy;
 #endif
 
 #ifndef CONFY_NO_ASSERT
@@ -77,22 +73,31 @@ public:
   Type(const Type& other);
   Type(Type&& other);
 
-  virtual ~Type();
+  virtual ~Type() = default;
   virtual std::string name() const = 0;
-  virtual bool is(const Type& other) const;
+  virtual bool is(const Type* other) const = 0;
   bool is(const std::shared_ptr<Type>& other) const;
+
+  static std::shared_ptr<Type> String;
+  static std::shared_ptr<Type> Number;
+  static std::shared_ptr<Type> Object(std::vector<std::pair<std::string, std::shared_ptr<Type>>>& types);
+  static std::shared_ptr<Type> Array(std::shared_ptr<Type>& type);
 };
 
 class StringType final : public Type {
 public:
   virtual std::string name() const override;
-  virtual bool is(const Type& other) const override;
+  virtual bool is(const Type* other) const override;
+
+  static std::shared_ptr<Type> create();
 };
 
 class NumType final : public Type {
 public:
   virtual std::string name() const override;
-  virtual bool is(const Type& other) const override;
+  virtual bool is(const Type* other) const override;
+
+  static std::shared_ptr<Type> create();
 };
 
 class ObjectType final : public Type {
@@ -101,12 +106,15 @@ public:
 
   ObjectType(std::vector<TypePair> types);
   virtual std::string name() const override;
-  virtual bool is(const Type& other) const override;
+  virtual bool is(const Type* other) const override;
   
   std::shared_ptr<Type> get(const std::string& key) const;
+  std::vector<TypePair> get_types() const;
   bool has(const std::string& key) const;
 
-  virtual ~ObjectType();
+  virtual ~ObjectType() = default;
+
+  static std::shared_ptr<Type> create(std::vector<TypePair>& types);
 private:
   std::vector<TypePair> types;
 };
@@ -115,11 +123,13 @@ class ArrayType final : public Type {
 public:
   ArrayType(std::shared_ptr<Type> type);
   virtual std::string name() const override;
-  virtual bool is(const Type& other) const override;
+  virtual bool is(const Type* other) const override;
 
   std::shared_ptr<Type> get() const;
 
-  virtual ~ArrayType();
+  virtual ~ArrayType() = default;
+
+  static std::shared_ptr<Type> create(std::shared_ptr<Type>& type);
 private:
   std::shared_ptr<Type> type;
 };
@@ -139,8 +149,52 @@ private:
  * });
  */
 class Interface {
+public:
+  using Global = std::pair<std::string, std::shared_ptr<Type>>;
+
+  Interface(std::vector<Global>& types);
+  virtual ~Interface() = default;
+
+  std::shared_ptr<Type> get(const std::string& key) const;
+  std::vector<Global> get_globals() const;
+  bool has(const std::string& key) const;
+
+  static Interface create(std::vector<Global> types);
+private:
+  std::vector<Global> global;
 };
 
+namespace utils {
+template<typename T, typename U>
+[[nodiscard]] std::shared_ptr<T> as(std::shared_ptr<U>& type) {
+  return std::dynamic_pointer_cast<T>(type);
+}
+
+template<typename T, typename U>
+[[nodiscard]] T* as(U* type) {
+  return dynamic_cast<T*>(type);
+}
+
+template<typename T, typename U>
+[[nodiscard]] bool is(const std::shared_ptr<U>& type) {
+  return as<T>(type) != nullptr;
+}
+
+template<typename T, typename U>
+[[nodiscard]] bool is(const U* type) {
+  return as<T>(type) != nullptr;
+}
+
+} // namespace utils
+
 } // namespace confy
+
+#ifdef CONFY_NO_NAMESPACE
+using namespace confy;
+#endif
+
+#ifndef CONFY_JUST_DECLARATIONS
+#include "confy.ipp"
+#endif
 
 #endif // __CONFY_MAIN_H__
