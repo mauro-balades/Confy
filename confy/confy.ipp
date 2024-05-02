@@ -245,4 +245,145 @@ std::shared_ptr<Number> Number::create(std::shared_ptr<Type> type, double value)
   return std::make_shared<Number>(type, value);
 }
 
+Result::Result(std::vector<std::shared_ptr<Value>> values, std::string config, std::vector<Error> errors)
+  : root(values), config(config), errors(errors) {}
+
+std::vector<std::shared_ptr<Value>> Result::get_root() const {
+  return root;
+}
+
+std::string Result::get_config() const {
+  return config;
+}
+
+std::vector<Error> Result::get_errors() const {
+  return errors;
+}
+
+bool Result::has_errors() const {
+  return !errors.empty();
+}
+
+Result Result::create(std::vector<std::shared_ptr<Value>> values, std::string config, std::vector<Error> errors) {
+  return Result(values, config, errors);
+}
+
+Error::Position Error::Position::copy() const {
+  return Error::Position {line, column};
+}
+
+Error::Error(std::string message, Error::Position pos) : message(message), position(pos) {}
+
+std::string Error::get_message() const {
+  return message;
+}
+
+Error::Position Error::get_position() const {
+  return position;
+}
+
+const char* Error::what() const noexcept {
+  return message.c_str();
+}
+
+namespace parser_internal {
+
+std::optional<std::string> get_identifier(const std::string& config, int& char_index, Error::Position& pos) {
+  if (!std::isalpha(config[char_index])) {
+    return std::nullopt;
+  }
+  std::string identifier;
+  while (std::isalnum(config[char_index]) || config[char_index] == '_') {
+    identifier += config[char_index];
+    pos.column++;
+    char_index++;
+  }
+  return identifier;
+}
+
+#define PARSER_NEXT_CHAR() \
+  if (char_index >= config.size()) { \
+    return EXIT_FAILURE; \
+  } \
+  pos.column++; \
+  char_index++;
+
+#define PARSER_EXPECT_CHAR(c) \
+  if (config[char_index] != c) { \
+    return create_error("Expected '" + std::string(1, c) + "' and got '" + std::string(1, config[char_index]) + "'", pos, errors); \
+  } \
+  PARSER_NEXT_CHAR();
+
+bool create_error(const std::string& message, Error::Position& pos, std::vector<Error>& errors) {
+  errors.push_back(Error(message, pos));
+  return EXIT_FAILURE;
+}
+
+bool parse_global_rule(Interface& root, const std::string& config, 
+  std::vector<std::shared_ptr<Value>>& values, 
+  std::vector<Error>& errors, Error::Position& pos, 
+  int& char_index) {
+  auto identifier = get_identifier(config, char_index, pos);
+  if (!identifier) {
+    return create_error("Expected identifier and got '" + std::string(1, config[char_index]) + "'", pos, errors);
+  }
+
+  PARSER_EXPECT_CHAR(':');
+
+  auto type = root.get(*identifier);
+  if (!type) {
+    return create_error("Unknown identifier '" + *identifier + "'", pos, errors);
+  }
+
+  assert(false);
+}
+
+bool parse_global(Interface& root, const std::string& config, 
+  std::vector<std::shared_ptr<Value>>& values, 
+  std::vector<Error>& errors, Error::Position& pos, 
+  int& char_index) {
+  while (char_index < config.size()) {
+    switch (config[char_index]) {
+      case ' ':
+      case '\t':
+        char_index++;
+        pos.column++;
+        break;
+
+      case '\n':
+        pos.column = 1;
+        pos.line++;
+        char_index++;
+        break;
+
+      case 0:
+        return EXIT_FAILURE;
+
+      default: {
+        return parse_global_rule(root, config, values, errors, pos, char_index);
+      }
+    }
+  }
+  CONFY_ASSERT(false, "Unexpected end of file");
+  return EXIT_FAILURE;
+}
+
+} // namespace _internal
+
+Result parse(Interface& root, const std::string& config) {
+  std::vector<Error> errors;
+  std::vector<std::shared_ptr<Value>> values;
+  Error::Position pos = {1, 1};
+  int char_index = 0;
+  while (true) {
+    if (parser_internal::parse_global(root, config, values, errors, pos, char_index)) {
+      break;
+    }
+  }
+  return Result::create(values, config, errors);
+}
+
+#undef PARSER_NEXT_CHAR
+#undef PARSER_EXPECT_CHAR
+
 } // namespace confy

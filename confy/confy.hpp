@@ -44,6 +44,7 @@
 #include <vector>
 #include <memory>
 #include <unordered_map>
+#include <optional>
 
 #ifndef CONFY_NO_ASSERT
 #include <cassert>
@@ -163,8 +164,10 @@ private:
 class Error : public std::exception {
 public:
   struct Position {
-    int line;
-    int column;
+    int line = 0;
+    int column = 0;
+
+    Position copy() const;
   };
 
   Error(std::string message, Position position);
@@ -271,21 +274,21 @@ private:
   */
 class Result {
 public:
-  Result(std::shared_ptr<Interface> root, std::string config);
-  Result(std::shared_ptr<Interface> root, std::string config, std::vector<Error> errors);
+  Result(std::vector<std::shared_ptr<Value>> root, std::string config, std::vector<Error> errors = {});
   virtual ~Result() = default;
 
-  std::shared_ptr<Interface> get_root() const;
+  std::vector<std::shared_ptr<Value>> get_root() const;
   std::string get_config() const;
   std::vector<Error> get_errors() const;
 
   bool has_errors() const;
+
+  static Result create(std::vector<std::shared_ptr<Value>> root, std::string config, std::vector<Error> errors = {});
 private:
   std::vector<std::shared_ptr<Value>> root;
   std::string config;
   std::vector<Error> errors;
 };
-
 
 /**
  * @brief Parse a configuration string with the given root interface.
@@ -296,7 +299,7 @@ private:
  * @param config The configuration string to parse.
  * @return true if the configuration is correct, false otherwise.
  */
-Result parse(Interface root, const std::string& config);
+Result parse(Interface& root, const std::string& config);
 
 namespace utils {
 template<typename T, typename U>
