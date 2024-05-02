@@ -1,4 +1,7 @@
-# Confy
+
+<img src="assets/logo.png" height="200" align="left"/>
+
+**Confy**
 Configure projects effortlessly! 💻
 
 This a project configuration file parser and system originally created for the [Snowball Programming Language](https://github.com/snowball-lang)!
@@ -14,6 +17,22 @@ This a project configuration file parser and system originally created for the [
 * Comprehensive error handling for robust development
 
 ## Show Me The Syntax!
+
+```c++
+  auto root = confy::Interface::create({
+    {"project", confy::Type::Object({
+        {"name", confy::Type::String},
+        {"version", confy::Type::String},
+        {"author", confy::Type::String},
+        {"description", confy::Type::String},
+    })},
+  });
+
+  auto result = confy::parse_file(root, "./project.confy");
+  // { errors: {}, root: ... }
+```
+
+Will be able to parse:
 
 ```js
 project {
