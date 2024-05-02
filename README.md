@@ -4,7 +4,9 @@
 **Confy**
 Configure projects effortlessly! 💻
 
-This a project configuration file parser and system originally created for the [Snowball Programming Language](https://github.com/snowball-lang)!<br />
+This a project configuration file parser and system originally created for the [Snowball Programming Language](https://github.com/snowball-lang)!
+
+[Issues](https://github.com/mauro-balades/confy/issues)
 
 ## Features
 
