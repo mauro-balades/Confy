@@ -5,19 +5,23 @@
 
 int main() {
   auto root = confy::Interface::create({
-    {"key1", confy::Type::String},
+    {"project", confy::Type::Object({
+        {"name", confy::Type::String},
+        {"version", confy::Type::String},
+        {"author", confy::Type::String},
+        {"description", confy::Type::String},
+    })},
   });
 
-  auto result = confy::parse(root, R"(key1: 23)");
-
+  auto result = confy::parse_file(root);
   if (result.has_errors()) {
     for (const auto& error : result.get_errors()) {
-      std::cout << error.get_message() << std::endl;
+      std::cout << "err: " << error.get_message() << std::endl;
     }
     return 1;
   }
 
-  auto key1 = result.get_root()["key1"];
+  auto key1 = result.get_root().at("project")->as_object().at("name");
   if (key1->is_string()) {
     std::cout << key1->as_string() << std::endl;
   }
