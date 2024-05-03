@@ -13,9 +13,7 @@ This a project configuration file parser and system originally created for the [
 * Header only C++ library (bringing fast parsing times)
 * Statically types (with syntax previously defined by the project executor)
 * Enables efficient memory management through smart pointers
-* Extensive documentation for quick and easy usage
 * Cross-platform compatibility for versatile deployment
-* Seamless interoperability with other programming languages
 * Comprehensive error handling for robust development
 
 ## Show Me The Syntax!
@@ -43,4 +41,59 @@ project {
     author: "Your Name";
     description: "A project created with Confy!";
 }
+```
+
+# Data Types
+
+### Object
+
+* A set of values of values that can be accessed by name
+
+```c++
+Types::Object({
+  {"name": Type},
+  ...
+});
+```
+
+```js
+  myObject: {
+    name: type
+  };
+```
+
+### Array
+
+* A set of values with the same type that can contain an infinite ammount of elements (from 0 to infinity)
+
+```c++
+Types::Array(Type);
+```
+
+```js
+  myArray: ["Hello", "Adios", "Ñog"];
+```
+
+### String
+
+* An array of characters (it's just a string) 
+
+```c++
+Types::String;
+```
+
+```js
+  myName: "mauro!";
+```
+
+### Number
+
+* A number from -inf to inf that can contain decimal places (represented as a double in the backend)
+
+```c++
+Types::Number;
+```
+
+```js
+  myNumber: 25;
 ```
