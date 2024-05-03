@@ -8,7 +8,7 @@ int main() {
     {"project", confy::Type::Object({
         {"name", confy::Type::String},
         {"version", confy::Type::String},
-        {"author", confy::Type::String},
+        {"author", confy::Type::Array(confy::Type::String)}, 
         {"description", confy::Type::String},
     })},
   });

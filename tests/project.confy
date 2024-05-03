@@ -2,6 +2,6 @@
 project {
     name: "MyLib";
     version: "1.0.0";
-    author: "Your Name";
+    author: ["Your Name"];
     description: "A project created with Confy!";
 };
