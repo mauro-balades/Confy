@@ -20,7 +20,7 @@ bool Type::is(const std::shared_ptr<Type>& other) const {
 std::shared_ptr<Type> Type::String = StringType::create();
 std::shared_ptr<Type> Type::Number = NumType::create();
 
-std::shared_ptr<Type> Type::Object(std::vector<std::pair<std::string, std::shared_ptr<Type>>>& types) {
+std::shared_ptr<Type> Type::Object(std::vector<std::pair<std::string, std::shared_ptr<Type>>> types) {
   return ObjectType::create(types);
 }
 
@@ -62,6 +62,24 @@ std::string ObjectType::name() const {
   return "object";
 }
 
+bool ObjectType::has(const std::string& key) const {
+  for (const auto& type : types) {
+    if (type.first == key) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::shared_ptr<Type> ObjectType::get(const std::string& key) const {
+  for (const auto& type : types) {
+    if (type.first == key) {
+      return type.second;
+    }
+  }
+  return nullptr;
+}
+
 bool ObjectType::is(const Type* other) const {
   if (const auto obj = utils::as<const ObjectType>(other)) {
     if (types.size() != obj->types.size()) {
@@ -89,6 +107,10 @@ std::string ArrayType::name() const {
   return "array";
 }
 
+std::shared_ptr<Type> ArrayType::get() const {
+  return type;
+}
+
 bool ArrayType::is(const Type* other) const {
   if (const auto arr = utils::as<const ArrayType>(other)) {
     return type->is(arr->type);
@@ -100,28 +122,16 @@ std::shared_ptr<Type> ArrayType::create(std::shared_ptr<Type>& type) {
   return std::make_shared<ArrayType>(type);
 }
 
-Interface::Interface(std::vector<Interface::Global>& globals) : global(globals) {}
+Interface::Interface(std::vector<Interface::Global>& globals) {
+  std::vector<ObjectType::TypePair> global_types;
+  for (const auto& global : globals) {
+    global_types.push_back({global.first, global.second});
+  }
+  global = std::make_shared<ObjectType>(global_types);
+}
 
-std::vector<Interface::Global> Interface::get_globals() const {
+std::shared_ptr<ObjectType> Interface::get_globals() const {
   return global;
-}
-
-std::shared_ptr<Type> Interface::get(const std::string& key) const {
-  for (const auto& global : global) {
-    if (global.first == key) {
-      return global.second;
-    }
-  }
-  return nullptr;
-}
-
-bool Interface::has(const std::string& key) const {
-  for (const auto& global : global) {
-    if (global.first == key) {
-      return true;
-    }
-  }
-  return false;
 }
 
 Interface Interface::create(std::vector<Interface::Global> globals) {
@@ -178,6 +188,17 @@ std::unordered_map<std::string, std::shared_ptr<Value>> Object::as_object() cons
 
 std::unordered_map<std::string, std::shared_ptr<Value>> Object::get_values() const {
   return values;
+}
+
+std::optional<std::shared_ptr<Value>> Object::get(const std::string& key) const {
+  if (values.find(key) != values.end()) {
+    return values.at(key);
+  }
+  return std::nullopt;
+}
+
+bool Object::has(const std::string& key) const {
+  return values.find(key) != values.end();
 }
 
 Array::Array(std::shared_ptr<Type> type, std::vector<std::shared_ptr<Value>> values)
@@ -245,10 +266,10 @@ std::shared_ptr<Number> Number::create(std::shared_ptr<Type> type, double value)
   return std::make_shared<Number>(type, value);
 }
 
-Result::Result(std::vector<Result::RootType> values, std::string config, std::vector<Error> errors)
+Result::Result(Result::RootType values, std::string config, std::vector<Error> errors)
   : root(values), config(config), errors(errors) {}
 
-std::vector<Result::RootType> Result::get_root() const {
+Result::RootType Result::get_root() const {
   return root;
 }
 
@@ -264,7 +285,7 @@ bool Result::has_errors() const {
   return !errors.empty();
 }
 
-Result Result::create(std::vector<RootType> values, std::string config, std::vector<Error> errors) {
+Result Result::create(Result::RootType values, std::string config, std::vector<Error> errors) {
   return Result(values, config, errors);
 }
 
@@ -287,19 +308,6 @@ const char* Error::what() const noexcept {
 }
 
 namespace parser_internal {
-
-std::optional<std::string> get_identifier(const std::string& config, int& char_index, Error::Position& pos) {
-  if (!std::isalpha(config[char_index])) {
-    return std::nullopt;
-  }
-  std::string identifier;
-  while (std::isalnum(config[char_index]) || config[char_index] == '_') {
-    identifier += config[char_index];
-    pos.column++;
-    char_index++;
-  }
-  return identifier;
-}
 
 #define PARSER_NEXT_CHAR() \
   SKIP_WHITESPACE(); \
@@ -326,16 +334,41 @@ std::optional<std::string> get_identifier(const std::string& config, int& char_i
   } \
   PARSER_NEXT_CHAR();
 
+#define EXPECT_END_OF_VALUE() \
+  if (!as_value) { \
+    SKIP_WHITESPACE(); \
+    if (config[char_index] != ';') { \
+      create_error("Expected ';' and got '" + std::string(1, config[char_index]) + "'", pos, errors); \
+      return std::nullopt; \
+    } \
+    PARSER_NEXT_CHAR(); \
+  }
+
+std::optional<std::string> get_identifier(const std::string& config, int& char_index, Error::Position& pos) {
+  SKIP_WHITESPACE();
+  if (!std::isalpha(config[char_index])) {
+    return std::nullopt;
+  }
+  std::string identifier;
+  while (std::isalnum(config[char_index]) || config[char_index] == '_') {
+    identifier += config[char_index];
+    pos.column++;
+    char_index++;
+  }
+  return identifier;
+}
+
 bool create_error(const std::string& message, Error::Position& pos, std::vector<Error>& errors) {
   errors.push_back(Error(message, pos));
   return EXIT_FAILURE;
 }
 
-std::optional<std::shared_ptr<Value>> parse_value(Interface& root, const std::string& config, 
-  std::vector<Result::RootType>& values, 
+std::optional<std::shared_ptr<Value>> parse_value(std::shared_ptr<ObjectType> root, const std::string& config, 
+  Result::RootType& values, 
   std::vector<Error>& errors, Error::Position& pos, 
-  int& char_index, const std::optional<std::string>& identifier) {
+  int& char_index, const std::optional<std::string>& identifier, bool as_value = false) {
   SKIP_WHITESPACE();
+  auto val_type = root->get(*identifier);
   if (config[char_index] == '"') {
     PARSER_NEXT_CHAR();
     std::string value;
@@ -349,7 +382,12 @@ std::optional<std::shared_ptr<Value>> parse_value(Interface& root, const std::st
       }
     }
     PARSER_NEXT_CHAR();
-    return String::create(root.get(*identifier), value);
+    if (!val_type->is<StringType>()) {
+      create_error("Expected '" + val_type->name() + "' and got '" + value + "'", pos, errors);
+      return std::nullopt;
+    }
+    EXPECT_END_OF_VALUE();
+    return String::create(val_type, value);
   } else if (std::isdigit(config[char_index])) {
     std::string value;
     while (std::isdigit(config[char_index]) || config[char_index] == '.') {
@@ -357,11 +395,24 @@ std::optional<std::shared_ptr<Value>> parse_value(Interface& root, const std::st
       pos.column++;
       char_index++;
     }
-    return Number::create(root.get(*identifier), std::stod(value));
+    if (!val_type->is<NumType>()) {
+      create_error("Expected '" + val_type->name() + "' and got 'number'", pos, errors);
+      return std::nullopt;
+    }
+    EXPECT_END_OF_VALUE();
+    return Number::create(val_type, std::stod(value));
   } else if (config[char_index] == '{') {
     PARSER_NEXT_CHAR();
     std::unordered_map<std::string, std::shared_ptr<Value>> rvalues;
+    if (!val_type->is<ObjectType>()) {
+      create_error("Expected '" + val_type->name() + "' and got 'object'", pos, errors);
+      return std::nullopt;
+    }
     while (config[char_index] != '}') {
+      SKIP_WHITESPACE();
+      if (config[char_index] == '}') {
+        break;
+      }
       auto identifier = get_identifier(config, char_index, pos);
       if (!identifier) {
         create_error("Expected identifier and got '" + std::string(1, config[char_index]) + "'", pos, errors);
@@ -372,32 +423,55 @@ std::optional<std::shared_ptr<Value>> parse_value(Interface& root, const std::st
         create_error("Expected ':' and got '" + std::string(1, config[char_index]) + "'", pos, errors);
         return std::nullopt;
       }
-      auto val = parse_value(root, config, values, errors, pos, char_index, identifier);
+      PARSER_NEXT_CHAR();
+      // TODO: set the new root here!
+      auto val = parse_value(utils::as<ObjectType>(val_type), config, values, errors, pos, char_index, identifier);
       if (!val) {
         return std::nullopt;
       }
       rvalues[*identifier] = *val;
     }
     PARSER_NEXT_CHAR();
-    return Object::create(root.get(*identifier), rvalues);
+    EXPECT_END_OF_VALUE();
+    return Object::create(val_type, rvalues);
   } else if (config[char_index] == '[') {
     PARSER_NEXT_CHAR();
     std::vector<std::shared_ptr<Value>> rvalues;
+    if (!val_type->is<ArrayType>()) { // TODO: Check for array subtypes
+      create_error("Expected '" + val_type->name() + "' and got 'array'", pos, errors);
+      return std::nullopt;
+    }
+    auto as_array = utils::as<ArrayType>(val_type);
     while (config[char_index] != ']') {
-      auto val = parse_value(root, config, values, errors, pos, char_index, identifier);
+      auto temp_root = std::make_shared<ObjectType>(std::vector<ObjectType::TypePair> {
+        {"$temp", as_array->get()}
+      });
+      auto val = parse_value(temp_root, config, values, errors, pos, char_index, "$temp", true);
       if (!val) {
         return std::nullopt;
       }
       rvalues.push_back(*val);
+      if (config[char_index] == ',') {
+        PARSER_NEXT_CHAR();
+        continue;
+      }
+      if (config[char_index] == ']') {
+        break;
+      } else {
+        create_error("Expected ',' or ']' and got '" + std::string(1, config[char_index]) + "'", pos, errors);
+        return std::nullopt;
+      }
     }
     PARSER_NEXT_CHAR();
-    return Array::create(root.get(*identifier), rvalues);
+    EXPECT_END_OF_VALUE();
+    return Array::create(val_type, rvalues);
   }
+  create_error("Unexpected character '" + std::string(1, config[char_index]) + "'", pos, errors);
   return std::nullopt;
 }
 
-bool parse_global_rule(Interface& root, const std::string& config, 
-  std::vector<Result::RootType>& values, 
+bool parse_global_rule(std::shared_ptr<ObjectType> root, const std::string& config, 
+  Result::RootType& values, 
   std::vector<Error>& errors, Error::Position& pos, 
   int& char_index, bool is_global = false) {
   auto identifier = get_identifier(config, char_index, pos);
@@ -405,14 +479,18 @@ bool parse_global_rule(Interface& root, const std::string& config,
     return create_error("Expected identifier and got '" + std::string(1, config[char_index]) + "'", pos, errors);
   }
 
+  if (!root->has(*identifier)) {
+    return create_error("Unknown identifier '" + *identifier + "'", pos, errors);
+  }
+
   SKIP_WHITESPACE();
-  if (config[char_index] == ':' && is_global) {
+  if (config[char_index] == ':' && is_global && config[char_index + 1] != '{') {
     PARSER_NEXT_CHAR();
     auto val = parse_value(root, config, values, errors, pos, char_index, identifier);
     if (!val) {
       return EXIT_FAILURE;
     }
-    values.push_back(std::make_pair(*identifier, *val));
+    values.insert(std::make_pair(*identifier, *val));
     return EXIT_SUCCESS;
   }
 
@@ -422,20 +500,23 @@ bool parse_global_rule(Interface& root, const std::string& config,
   }
 
   PARSER_EXPECT_CHAR('{');
+  char_index--; // We need to reparse the '{' character
 
-  auto type = root.get(*identifier);
-  if (!type) {
-    return create_error("Unknown identifier '" + *identifier + "'", pos, errors);
+  // It's the same syntax as the global rule
+  auto val = parse_value(root, config, values, errors, pos, char_index, identifier);
+  if (!val) {
+    return EXIT_FAILURE;
   }
-
-  PARSER_EXPECT_CHAR('}');
+  values.insert(std::make_pair(*identifier, *val));
+  PARSER_NEXT_CHAR();
   return EXIT_SUCCESS;
 }
 
 bool parse_global(Interface& root, const std::string& config, 
-  std::vector<Result::RootType>& values, 
+  Result::RootType& values, 
   std::vector<Error>& errors, Error::Position& pos, 
   int& char_index) {
+
   while (char_index < config.size()) {
     switch (config[char_index]) {
       case ' ':
@@ -454,19 +535,18 @@ bool parse_global(Interface& root, const std::string& config,
         return EXIT_FAILURE;
 
       default: {
-        return parse_global_rule(root, config, values, errors, pos, char_index, true);
+        return parse_global_rule(root.get_globals(), config, values, errors, pos, char_index, true);
       }
     }
   }
-  CONFY_ASSERT(false, "Unexpected end of file");
-  return EXIT_FAILURE;
+  return EXIT_FAILURE; // End the loop
 }
 
 } // namespace _internal
 
 Result parse(Interface& root, const std::string& config) {
   std::vector<Error> errors;
-  std::vector<Result::RootType> values;
+  Result::RootType values;
   Error::Position pos = {1, 1};
   int char_index = 0;
   while (true) {
@@ -475,6 +555,15 @@ Result parse(Interface& root, const std::string& config) {
     }
   }
   return Result::create(values, config, errors);
+}
+
+Result parse_file(Interface& root, const std::string& file) {
+  std::ifstream ifs(file);
+  if (!ifs.is_open()) {
+    return Result::create({}, "", {Error("Could not open file", Error::Position {1, 1})});
+  }
+  std::string config((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+  return parse(root, config);
 }
 
 #undef PARSER_NEXT_CHAR

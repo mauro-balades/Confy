@@ -38,9 +38,9 @@ Will be able to parse:
 
 ```js
 project {
-    name: "MyLib"
-    version: "1.0.0"
-    author: "Your Name"
-    description: "A project created with Confy!"
+    name: "MyLib";
+    version: "1.0.0";
+    author: "Your Name";
+    description: "A project created with Confy!";
 }
 ```

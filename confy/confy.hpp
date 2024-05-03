@@ -33,6 +33,8 @@
  *   - CONFY_NO_NAMESPACE: If you define this macro, we will declare the namespace confy. (not recommended)
  *   - CONFY_JUST_DECLARATIONS: If you define this macro, we will not define the implementation of the functions.
  *   - CONFY_NO_ASSERT: If you define this macro, we will not use the assert macro.
+ *   - CONFY_DEFAULT_FILE: If you define this macro, we will use this as the default file for the parse_file function.
+ *   - CONFY_USE_FILE: If you define this macro, we will enable the parse_file function.
  */
 
 #endif // Finish License Check!
@@ -51,6 +53,18 @@
 #define CONFY_ASSERT(x, m) assert((x) && (m))
 #else
 #define CONFY_ASSERT(x, m)
+#endif
+
+#ifndef CONFY_USE_FILE
+#define CONFY_USE_FILE 1
+#endif
+
+#if defined(CONFY_USE_FILE) && CONFY_USE_FILE
+#include <fstream>
+#endif
+
+#ifndef CONFY_DEFAULT_FILE
+#define CONFY_DEFAULT_FILE "project.confy"
 #endif
 
 namespace confy {
@@ -75,9 +89,14 @@ public:
   virtual bool is(const Type* other) const = 0;
   bool is(const std::shared_ptr<Type>& other) const;
 
+  template <typename T>
+  bool is() const {
+    return dynamic_cast<const T*>(this) != nullptr;
+  }
+
   static std::shared_ptr<Type> String;
   static std::shared_ptr<Type> Number;
-  static std::shared_ptr<Type> Object(std::vector<std::pair<std::string, std::shared_ptr<Type>>>& types);
+  static std::shared_ptr<Type> Object(std::vector<std::pair<std::string, std::shared_ptr<Type>>> types);
   static std::shared_ptr<Type> Array(std::shared_ptr<Type>& type);
 };
 
@@ -141,7 +160,7 @@ private:
  * Example:
  * @code
  * // Create a root interface
- * auto root = confy::RootInterface::create({
+ * auto root = confy::Interface::create({
  *     {"key1", confy::Type::String},
  * });
  */
@@ -152,13 +171,11 @@ public:
   Interface(std::vector<Global>& types);
   virtual ~Interface() = default;
 
-  std::shared_ptr<Type> get(const std::string& key) const;
-  std::vector<Global> get_globals() const;
-  bool has(const std::string& key) const;
+  std::shared_ptr<ObjectType> get_globals() const;
 
   static Interface create(std::vector<Global> types);
 private:
-  std::vector<Global> global;
+  std::shared_ptr<ObjectType> global;
 };
 
 class Error : public std::exception {
@@ -210,6 +227,8 @@ public:
   virtual ~Object() = default;
 
   std::unordered_map<std::string, std::shared_ptr<Value>> get_values() const;
+  std::optional<std::shared_ptr<Value>> get(const std::string& key) const;
+  bool has(const std::string& key) const;
 
   virtual bool is_object() const override;
   virtual std::unordered_map<std::string, std::shared_ptr<Value>> as_object() const override;
@@ -274,20 +293,20 @@ private:
   */
 class Result {
 public:
-  using RootType = std::pair<std::string, std::shared_ptr<Value>>;
+  using RootType = std::unordered_map<std::string, std::shared_ptr<Value>>;
 
-  Result(std::vector<RootType> root, std::string config, std::vector<Error> errors = {});
+  Result(RootType root, std::string config, std::vector<Error> errors = {});
   virtual ~Result() = default;
 
-  std::vector<RootType> get_root() const;
+  RootType get_root() const;
   std::string get_config() const;
   std::vector<Error> get_errors() const;
 
   bool has_errors() const;
 
-  static Result create(std::vector<RootType> root, std::string config, std::vector<Error> errors = {});
+  static Result create(RootType root, std::string config, std::vector<Error> errors = {});
 private:
-  std::vector<RootType> root;
+  RootType root;
   std::string config;
   std::vector<Error> errors;
 };
@@ -302,6 +321,15 @@ private:
  * @return true if the configuration is correct, false otherwise.
  */
 Result parse(Interface& root, const std::string& config);
+
+#if defined(CONFY_USE_FILE) && CONFY_USE_FILE
+/**
+ * @brief Parse a configuration file with the given root interface.
+ * 
+ * This function will parse the configuration file with the given root interface.
+ */
+Result parse_file(Interface& root, const std::string& file = CONFY_DEFAULT_FILE);
+#endif
 
 namespace utils {
 template<typename T, typename U>
