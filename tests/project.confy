@@ -1,7 +1,8 @@
 
+# Comment!
 project {
     name: "MyLib";
-    version: "1.0.0";
+    version: "1.0.0"; # hello 
     author: ["Your Name"];
     description: "A project created with Confy!";
     log_level: 2;

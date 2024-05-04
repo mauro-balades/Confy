@@ -23,7 +23,7 @@ This a project configuration file parser and system originally created for the [
     {"project", confy::Type::Object({
         {"name", confy::Type::String},
         {"version", confy::Type::String},
-        {"author", confy::Type::String},
+        {"authors", confy::Type::Array(confy::Type::String)},
         {"description", confy::Type::String},
     })},
   });
@@ -34,11 +34,13 @@ This a project configuration file parser and system originally created for the [
 
 Will be able to parse:
 
-```js
+```conf
+# haha, you cant see me!
+
 project {
     name: "MyLib";
     version: "1.0.0";
-    author: "Your Name";
+    author: ["Your Name"];
     description: "A project created with Confy!";
 }
 ```

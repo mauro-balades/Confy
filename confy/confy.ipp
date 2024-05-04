@@ -333,6 +333,14 @@ namespace parser_internal {
       pos.column++; \
     } \
     char_index++; \
+  } \
+  if (config[char_index] == '#') { \
+    while (config[char_index] != '\n') { \
+      char_index++; \
+    } \
+    pos.line++; \
+    pos.column = 1; \
+    char_index++; \
   }
 
 #define PARSER_EXPECT_CHAR(c) \
