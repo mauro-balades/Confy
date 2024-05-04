@@ -1,4 +1,5 @@
 
+#define CONFY_USE_UTILS
 #include "../confy/confy.hpp"
 
 #include <iostream>
@@ -10,6 +11,7 @@ int main() {
         {"version", confy::Type::String},
         {"author", confy::Type::Array(confy::Type::String)}, 
         {"description", confy::Type::String},
+        {"log_level", confy::RangeNumType<0, 3>::create()}
     })},
   });
 
