@@ -35,6 +35,7 @@
  *   - CONFY_NO_ASSERT: If you define this macro, we will not use the assert macro.
  *   - CONFY_DEFAULT_FILE: If you define this macro, we will use this as the default file for the parse_file function.
  *   - CONFY_USE_FILE: If you define this macro, we will enable the parse_file function.
+ *   - CONFY_USE_UTILS: If you define this macro, we will include the utils classes.
  */
 
 #endif // Finish License Check!
@@ -61,6 +62,10 @@
 
 #if defined(CONFY_USE_FILE) && CONFY_USE_FILE
 #include <fstream>
+#endif
+
+#ifdef CONFY_USE_UTILS
+#include <regex>
 #endif
 
 #ifndef CONFY_DEFAULT_FILE
@@ -100,20 +105,24 @@ public:
   static std::shared_ptr<Type> Array(std::shared_ptr<Type>& type);
 };
 
-class StringType final : public Type {
+class StringType : public Type {
 public:
   virtual std::string name() const override;
   virtual bool is(const Type* other) const override;
 
   static std::shared_ptr<Type> create();
+
+  virtual std::optional<std::string> validate(const std::string& value) const;
 };
 
-class NumType final : public Type {
+class NumType : public Type {
 public:
   virtual std::string name() const override;
   virtual bool is(const Type* other) const override;
 
   static std::shared_ptr<Type> create();
+
+  virtual std::optional<std::string> validate(double value) const;
 };
 
 class ObjectType final : public Type {
@@ -284,13 +293,13 @@ private:
 };
 
 /**
-  * @brief The result of the parser.
-  * 
-  * This class represents the result of the parser.
-  * It will contain the root interface and the parsed configuration.
-  * 
-  * It can also contain the error messages if the configuration is incorrect.
-  */
+ * @brief The result of the parser.
+ * 
+ * This class represents the result of the parser.
+ * It will contain the root interface and the parsed configuration.
+ * 
+ * It can also contain the error messages if the configuration is incorrect.
+ */
 class Result {
 public:
   using RootType = std::unordered_map<std::string, std::shared_ptr<Value>>;
@@ -353,6 +362,10 @@ template<typename T, typename U>
 }
 
 } // namespace utils
+
+#ifdef CONFY_USE_UTILS
+#include "util_classes.hpp"
+#endif
 
 } // namespace confy
 

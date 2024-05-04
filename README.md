@@ -97,3 +97,111 @@ Types::Number;
 ```js
   myNumber: 25;
 ```
+
+## Utility Types
+
+* Utility types are used to validate the given data.
+* To enable the utility classes, define the `CONFY_USE_UTILS` macro before including `confy.hpp`
+* If the validation returns an error, it will be thrown and the parsing will fail
+
+### MinNumType<int N1>
+
+* A number that must be bigger than `N1`
+
+```c++
+MinNumType<10>::create();
+```
+
+```js
+  myNumber: 12;
+```
+
+
+### MaxNumType<int N1>
+
+* A number that must be less than `N1`
+
+```c++
+MaxNumType<10>::create();
+```
+
+```js
+  myNumber: 6;
+```
+
+### RangeNumType<int N1, int N2>
+
+* A number that must be bigger than `N1`and less than `N2`
+
+```c++
+RangeNumType<10, 20>::create();
+```
+
+```js
+  myNumber: 12;
+```
+
+### MinStrType<int S1>
+
+* The parsed string's length must be bigger than `S1`
+
+```c++
+MinStrType<3>::create();
+```
+
+```js
+  myString: "hello there";
+```
+
+### StrRegexType
+
+* The parsed string's must satisfy the given regex
+
+```c++
+StrRegexType::create("*");
+```
+
+```js
+  myString: "I dont know how regex works";
+```
+
+### Custom Validation Types
+
+* To create your own validation type, create a new class inheriting from a `primitive type` (like `NumType` or `StringType`).
+* Override the `validate` method where it's value may depend from which type is being inherited from.
+
+Example of a class that only accepts if a string starts with "hello".
+
+```c++
+class MyCustomType : public confy::StringType {
+public:
+  // Validate takes a `double` if it inherits from `confy::NumType`!
+  std::optional<std::string> validate(const std::string& value) const override {
+    if (s.rfind("hello", 0) == 0) { 
+      return std::nullopt;
+    }
+    return "String must start with 'hello'!";
+  }
+
+  // Optional but it's nice to have a generator function
+  static std::shared_ptr<MyCustomType> create() {
+    return std::make_shared<MyCustomType>(regex);
+  }
+}
+```
+
+Usage
+
+```c++
+  {"myStr": MyCustomType::create()}
+```
+
+This will work as (ignore the duplicate name error):
+
+```
+  myStr: "hello world";
+
+  myStr: "hello mauro";
+
+  myStr: "goodbye :("; # error!
+```

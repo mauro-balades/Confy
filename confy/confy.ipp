@@ -40,12 +40,20 @@ std::shared_ptr<Type> StringType::create() {
   return std::make_shared<StringType>();
 }
 
+std::optional<std::string> StringType::validate(const std::string& value) const {
+  return std::nullopt;
+}
+
 std::string NumType::name() const {
   return "number";
 }
 
 bool NumType::is(const Type* other) const {
   return utils::is<const NumType>(other);
+}
+
+std::optional<std::string> NumType::validate(double value) const {
+  return std::nullopt;
 }
 
 std::shared_ptr<Type> NumType::create() {
@@ -387,6 +395,10 @@ std::optional<std::shared_ptr<Value>> parse_value(std::shared_ptr<ObjectType> ro
       return std::nullopt;
     }
     EXPECT_END_OF_VALUE();
+    if (auto err = utils::as<StringType>(val_type)->validate(value)) {
+      create_error(err.value(), pos, errors);
+      return std::nullopt;
+    }
     return String::create(val_type, value);
   } else if (std::isdigit(config[char_index])) {
     std::string value;
@@ -400,7 +412,12 @@ std::optional<std::shared_ptr<Value>> parse_value(std::shared_ptr<ObjectType> ro
       return std::nullopt;
     }
     EXPECT_END_OF_VALUE();
-    return Number::create(val_type, std::stod(value));
+    auto num = std::stod(value);
+    if (auto err = utils::as<NumType>(val_type)->validate(num)) {
+      create_error(err.value(), pos, errors);
+      return std::nullopt;
+    }
+    return Number::create(val_type, num);
   } else if (config[char_index] == '{') {
     PARSER_NEXT_CHAR();
     std::unordered_map<std::string, std::shared_ptr<Value>> rvalues;
@@ -427,6 +444,10 @@ std::optional<std::shared_ptr<Value>> parse_value(std::shared_ptr<ObjectType> ro
       // TODO: set the new root here!
       auto val = parse_value(utils::as<ObjectType>(val_type), config, values, errors, pos, char_index, identifier);
       if (!val) {
+        return std::nullopt;
+      }
+      if (rvalues.find(*identifier) != rvalues.end()) {
+        create_error("Duplicate identifier '" + *identifier + "'", pos, errors);
         return std::nullopt;
       }
       rvalues[*identifier] = *val;
