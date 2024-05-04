@@ -23,10 +23,8 @@ int main() {
     return 1;
   }
 
-  auto key1 = result.get_root().at("project")->as_object().at("name");
-  if (key1->is_string()) {
-    std::cout << key1->as_string() << std::endl;
-  }
+  auto key1 = result.get_number_or("project.log_level", 0);
+  std::cout << "key1: " << key1 << std::endl;
 
   return 0;
 }

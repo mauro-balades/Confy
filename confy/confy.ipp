@@ -251,7 +251,7 @@ double Number::as_number() const {
 }
 
 double Number::get_value() const {
-  return get_value();
+  return as_number();
 }
 
 std::string String::get_value() const {
@@ -297,6 +297,79 @@ Result Result::create(Result::RootType values, std::string config, std::vector<E
   return Result(values, config, errors);
 }
 
+std::optional<std::shared_ptr<Value>> Result::search(const std::string& key) const {
+  auto parts = utils::split(key, ".");
+  std::shared_ptr<Value> current = nullptr;
+  for (const auto& part : parts) {
+    if (!current) {
+      if (root.find(part) == root.end()) {
+        return std::nullopt;
+      }
+      current = root.at(part);
+    } else {
+      if (!current->is_object()) {
+        return std::nullopt;
+      }
+      auto obj = utils::as<Object>(current);
+      if (!obj->has(part)) {
+        return std::nullopt;
+      }
+      current = obj->get(part).value();
+    }
+  }
+  return current;
+}
+
+std::optional<double> Result::get_number(const std::string& key) const {
+  if (auto val = search(key)) {
+    if (val.value()->is_number()) {
+      return utils::as<Number>(val.value())->get_value();
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<std::string> Result::get_string(const std::string& key) const {
+  if (auto val = search(key)) {
+    if (val.value()->is_string()) {
+      return utils::as<String>(val.value())->get_value();
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<std::unordered_map<std::string, std::shared_ptr<Value>>> Result::get_object(const std::string& key) const {
+  if (auto val = search(key)) {
+    if (val.value()->is_object()) {
+      return utils::as<Object>(val.value())->get_values();
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<std::vector<std::shared_ptr<Value>>> Result::get_array(const std::string& key) const {
+  if (auto val = search(key)) {
+    if (val.value()->is_array()) {
+      return utils::as<Array>(val.value())->get_values();
+    }
+  }
+  return std::nullopt;
+}
+
+double Result::get_number_or(const std::string& key, double def) const {
+  if (auto val = get_number(key)) {
+    return val.value();
+  }
+  return def;
+}
+
+std::string Result::get_string_or(const std::string& key, std::string def) const {
+  if (auto val = get_string(key)) {
+    return val.value();
+  }
+  return def;
+}
+
 Error::Position Error::Position::copy() const {
   return Error::Position {line, column};
 }
@@ -313,6 +386,17 @@ Error::Position Error::get_position() const {
 
 const char* Error::what() const noexcept {
   return message.c_str();
+}
+
+std::vector<std::string> utils::split(std::string str, const std::string& delim) {
+  std::vector<std::string> tokens;
+  size_t pos = 0;
+  while ((pos = str.find(delim)) != std::string::npos) {
+    tokens.push_back(str.substr(0, pos));
+    str.erase(0, pos + delim.length());
+  }
+  tokens.push_back(str);
+  return tokens;
 }
 
 namespace parser_internal {

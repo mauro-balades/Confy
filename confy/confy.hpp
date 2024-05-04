@@ -301,6 +301,7 @@ private:
  * It can also contain the error messages if the configuration is incorrect.
  */
 class Result {
+  std::optional<std::shared_ptr<Value>> search(const std::string& key) const;
 public:
   using RootType = std::unordered_map<std::string, std::shared_ptr<Value>>;
 
@@ -310,6 +311,14 @@ public:
   RootType get_root() const;
   std::string get_config() const;
   std::vector<Error> get_errors() const;
+
+  std::optional<double> get_number(const std::string& key) const;
+  std::optional<std::string> get_string(const std::string& key) const;
+  std::optional<std::unordered_map<std::string, std::shared_ptr<Value>>> get_object(const std::string& key) const;
+  std::optional<std::vector<std::shared_ptr<Value>>> get_array(const std::string& key) const;
+
+  double get_number_or(const std::string& key, double def = 0.0) const;
+  std::string get_string_or(const std::string& key, std::string def = "") const;
 
   bool has_errors() const;
 
@@ -360,6 +369,8 @@ template<typename T, typename U>
 [[nodiscard]] bool is(const U* type) {
   return as<T>(type) != nullptr;
 }
+
+std::vector<std::string> split(std::string str, const std::string& delim);
 
 } // namespace utils
 
