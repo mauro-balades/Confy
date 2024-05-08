@@ -187,7 +187,7 @@ public:
 
   // Optional but it's nice to have a generator function
   static std::shared_ptr<MyCustomType> create() {
-    return std::make_shared<MyCustomType>(regex);
+    return std::make_shared<MyCustomType>();
   }
 }
 ```
