@@ -1,6 +1,6 @@
 
 #define CONFY_USE_UTILS
-#include "../confy/confy.hpp"
+#include "../srcconfy/confy.hpp"
 
 #include <iostream>
 
