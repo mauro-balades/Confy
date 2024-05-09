@@ -587,14 +587,14 @@ bool parse_global_rule(std::shared_ptr<ObjectType> root, const std::string& conf
   Result::RootType& values, 
   std::vector<Error>& errors, Error::Position& pos, 
   size_t& char_index, bool is_global = false) {
+  Error::Position copy_pos = pos;
   auto identifier = get_identifier(config, char_index, pos);
   if (!identifier) {
     return create_error("Expected identifier and got '" + std::string(1, config[char_index]) + "'", pos, errors);
   }
 
   if (!root->has(*identifier)) {
-    char_index -= identifier->size() + 1;
-    return create_error("Unknown identifier '" + *identifier + "'", pos, errors);
+    return create_error("Unknown identifier '" + *identifier + "'", copy_pos, errors);
   }
 
   SKIP_WHITESPACE();
