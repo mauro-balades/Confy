@@ -469,6 +469,10 @@ std::optional<std::shared_ptr<Value>> parse_value(std::shared_ptr<ObjectType> ro
   size_t& char_index, const std::optional<std::string>& identifier, bool as_value = false) {
   SKIP_WHITESPACE();
   auto val_type = root->get(*identifier);
+  if (nullptr == val_type) {
+    create_error("Unknown identifier '" + *identifier + "'", pos, errors);
+    return std::nullopt;
+  }
   if (config[char_index] == '"') {
     PARSER_NEXT_CHAR();
     std::string value;
