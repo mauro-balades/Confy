@@ -444,7 +444,7 @@ namespace parser_internal {
     PARSER_NEXT_CHAR(); \
   }
 
-std::optional<std::string> get_identifier(const std::string& config, int& char_index, Error::Position& pos) {
+std::optional<std::string> get_identifier(const std::string& config, size_t& char_index, Error::Position& pos) {
   SKIP_WHITESPACE();
   if (!std::isalpha(config[char_index])) {
     return std::nullopt;
@@ -466,7 +466,7 @@ bool create_error(const std::string& message, Error::Position& pos, std::vector<
 std::optional<std::shared_ptr<Value>> parse_value(std::shared_ptr<ObjectType> root, const std::string& config, 
   Result::RootType& values, 
   std::vector<Error>& errors, Error::Position& pos, 
-  int& char_index, const std::optional<std::string>& identifier, bool as_value = false) {
+  size_t& char_index, const std::optional<std::string>& identifier, bool as_value = false) {
   SKIP_WHITESPACE();
   auto val_type = root->get(*identifier);
   if (config[char_index] == '"') {
@@ -586,13 +586,14 @@ std::optional<std::shared_ptr<Value>> parse_value(std::shared_ptr<ObjectType> ro
 bool parse_global_rule(std::shared_ptr<ObjectType> root, const std::string& config, 
   Result::RootType& values, 
   std::vector<Error>& errors, Error::Position& pos, 
-  int& char_index, bool is_global = false) {
+  size_t& char_index, bool is_global = false) {
   auto identifier = get_identifier(config, char_index, pos);
   if (!identifier) {
     return create_error("Expected identifier and got '" + std::string(1, config[char_index]) + "'", pos, errors);
   }
 
   if (!root->has(*identifier)) {
+    char_index -= identifier->size() + 1;
     return create_error("Unknown identifier '" + *identifier + "'", pos, errors);
   }
 
@@ -628,7 +629,7 @@ bool parse_global_rule(std::shared_ptr<ObjectType> root, const std::string& conf
 bool parse_global(Interface& root, const std::string& config, 
   Result::RootType& values, 
   std::vector<Error>& errors, Error::Position& pos, 
-  int& char_index) {
+  size_t& char_index) {
 
   while (char_index < config.size()) {
     switch (config[char_index]) {
@@ -661,7 +662,7 @@ Result parse(Interface& root, const std::string& config) {
   std::vector<Error> errors;
   Result::RootType values;
   Error::Position pos = {1, 1};
-  int char_index = 0;
+  size_t char_index = 0;
   while (true) {
     if (parser_internal::parse_global(root, config, values, errors, pos, char_index)) {
       break;
