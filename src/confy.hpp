@@ -101,7 +101,6 @@ public:
 
   static std::shared_ptr<Type> String;
   static std::shared_ptr<Type> Number;
-  static std::shared_ptr<Type> Object(std::vector<std::pair<std::string, std::shared_ptr<Type>>> types);
   static std::shared_ptr<Type> Array(std::shared_ptr<Type>& type);
 };
 
@@ -123,25 +122,6 @@ public:
   static std::shared_ptr<Type> create();
 
   virtual std::optional<std::string> validate(double value) const;
-};
-
-class ObjectType final : public Type {
-public:
-  using TypePair = std::pair<std::string, std::shared_ptr<Type>>;
-
-  ObjectType(std::vector<TypePair> types);
-  virtual std::string name() const override;
-  virtual bool is(const Type* other) const override;
-  
-  std::shared_ptr<Type> get(const std::string& key) const;
-  std::vector<TypePair> get_types() const;
-  bool has(const std::string& key) const;
-
-  virtual ~ObjectType() = default;
-
-  static std::shared_ptr<Type> create(std::vector<TypePair>& types);
-private:
-  std::vector<TypePair> types;
 };
 
 class ArrayType final : public Type {
@@ -175,16 +155,17 @@ private:
  */
 class Interface {
 public:
-  using Global = std::pair<std::string, std::shared_ptr<Type>>;
+  using Global = std::unordered_map<std::string, std::shared_ptr<Type>>;
 
-  Interface(std::vector<Global>& types);
+  Interface(const Global& types);
   virtual ~Interface() = default;
 
-  std::shared_ptr<ObjectType> get_globals() const;
+  std::shared_ptr<Type> get(const std::string& key) const;
+  bool has(const std::string& key) const;
 
-  static Interface create(std::vector<Global> types);
+  static Interface create(const Global& types);
 private:
-  std::shared_ptr<ObjectType> global;
+  Global global;
 };
 
 class Error : public std::exception {
@@ -222,29 +203,11 @@ public:
 
   virtual std::string as_string() const;
   virtual double as_number() const;
-  virtual std::unordered_map<std::string, std::shared_ptr<Value>> as_object() const;
   virtual std::vector<std::shared_ptr<Value>> as_array() const;
 
   static std::shared_ptr<Value> create(std::shared_ptr<Type> type);
 private:
   std::shared_ptr<Type> type;
-};
-
-class Object final : public Value {
-public:
-  Object(std::shared_ptr<Type> type, std::unordered_map<std::string, std::shared_ptr<Value>> values);
-  virtual ~Object() = default;
-
-  std::unordered_map<std::string, std::shared_ptr<Value>> get_values() const;
-  std::optional<std::shared_ptr<Value>> get(const std::string& key) const;
-  bool has(const std::string& key) const;
-
-  virtual bool is_object() const override;
-  virtual std::unordered_map<std::string, std::shared_ptr<Value>> as_object() const override;
-
-  static std::shared_ptr<Object> create(std::shared_ptr<Type>, std::unordered_map<std::string, std::shared_ptr<Value>>& values);
-private:
-  std::unordered_map<std::string, std::shared_ptr<Value>> values;
 };
 
 class Array final : public Value {

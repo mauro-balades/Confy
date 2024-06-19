@@ -6,13 +6,7 @@
 
 int main() {
   auto root = confy::Interface::create({
-    {"project", confy::Type::Object({
-        {"name", confy::Type::String},
-        {"version", confy::Type::String},
-        {"author", confy::Type::Array(confy::Type::String)}, 
-        {"description", confy::Type::String},
-        {"log_level", confy::RangeNumType<0, 3>::create()}
-    })},
+    {"project.log_level", confy::Type::Number},
   });
 
   auto result = confy::parse_file(root);

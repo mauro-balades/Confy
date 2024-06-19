@@ -20,12 +20,8 @@ This a project configuration file parser and system originally created for the [
 
 ```c++
   auto root = confy::Interface::create({
-    {"project", confy::Type::Object({
-        {"name", confy::Type::String},
-        {"version", confy::Type::String},
-        {"authors", confy::Type::Array(confy::Type::String)},
-        {"description", confy::Type::String},
-    })},
+    {"project.name", confy::Type::String},
+    {"project.version", confy::Type::String},
   });
 
   auto result = confy::parse_file(root, "./project.confy");
@@ -37,32 +33,11 @@ Will be able to parse:
 ```conf
 # haha, you cant see me!
 
-project {
-    name: "MyLib";
-    version: "1.0.0";
-    author: ["Your Name"];
-    description: "A project created with Confy!";
-}
+project.name = "Confy";
+project.version = "1.0.0";
 ```
 
 # Data Types
-
-### Object
-
-* A set of values of values that can be accessed by name
-
-```c++
-Types::Object({
-  {"name": Type},
-  ...
-});
-```
-
-```js
-  myObject: {
-    name: type
-  };
-```
 
 ### Array
 
@@ -72,8 +47,8 @@ Types::Object({
 Types::Array(Type);
 ```
 
-```js
-  myArray: ["Hello", "Adios", "Ñog"];
+```conf
+my-array = [1, 2, 3, 4, 5];
 ```
 
 ### String
@@ -84,8 +59,8 @@ Types::Array(Type);
 Types::String;
 ```
 
-```js
-  myName: "mauro!";
+```conf
+name = "Mauro";
 ```
 
 ### Number
@@ -96,8 +71,8 @@ Types::String;
 Types::Number;
 ```
 
-```js
-  myNumber: 25;
+```conf
+age = 20;
 ```
 
 ## Utility Types
@@ -114,8 +89,8 @@ Types::Number;
 MinNumType<10>::create();
 ```
 
-```js
-  myNumber: 12;
+```conf
+my_number = 20; # error!
 ```
 
 
