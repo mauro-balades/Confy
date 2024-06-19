@@ -423,6 +423,7 @@ namespace parser_internal {
     } \
     pos.line++; \
     pos.column = 1; \
+    char_index++; \
   } 
 
 #define PARSER_EXPECT_CHAR(c) \
