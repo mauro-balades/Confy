@@ -1,9 +1,9 @@
+hello = "world"
 
-# Comment!
 project {
-    name: "MyLib";
-    version: "1.0.0"; # hello 
-    author: ["Your Name"];
-    description: "A project created with Confy!";
-    log_level: 2;
-};
+    name = "MyLib"
+    version = "1.0.0"
+    author = ["Your Name"]
+    description = "A project created with Confy!"
+    log_level = 2
+}

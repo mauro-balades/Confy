@@ -13,12 +13,15 @@ int main() {
         {"description", confy::Type::String},
         {"log_level", confy::RangeNumType<0, 3>::create()}
     })},
+    {"hello", confy::Type::String}
   });
 
   auto result = confy::parse_file(root);
   if (result.has_errors()) {
     for (const auto& error : result.get_errors()) {
       std::cout << "err: " << error.get_message() << std::endl;
+      std::cout << "line: " << error.get_position().line << std::endl;
+      std::cout << "column: " << error.get_position().column << std::endl;
     }
     return 1;
   }

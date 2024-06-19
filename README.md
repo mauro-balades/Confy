@@ -38,10 +38,10 @@ Will be able to parse:
 # haha, you cant see me!
 
 project {
-    name: "MyLib";
-    version: "1.0.0";
-    author: ["Your Name"];
-    description: "A project created with Confy!";
+    name "MyLib";
+    version "1.0.0";
+    author ["Your Name"];
+    description "A project created with Confy!";
 }
 ```
 
@@ -59,9 +59,9 @@ Types::Object({
 ```
 
 ```js
-  myObject: {
-    name: type
-  };
+  myObject {
+    name type
+  }
 ```
 
 ### Array
@@ -73,7 +73,7 @@ Types::Array(Type);
 ```
 
 ```js
-  myArray: ["Hello", "Adios", "Ñog"];
+  myArray ["Hello", "Adios", "Ñog"]
 ```
 
 ### String
@@ -85,7 +85,7 @@ Types::String;
 ```
 
 ```js
-  myName: "mauro!";
+  myName "mauro!"
 ```
 
 ### Number
@@ -97,7 +97,7 @@ Types::Number;
 ```
 
 ```js
-  myNumber: 25;
+  myNumber 25
 ```
 
 ## Utility Types
@@ -115,7 +115,7 @@ MinNumType<10>::create();
 ```
 
 ```js
-  myNumber: 12;
+  myNumber 12
 ```
 
 
@@ -128,7 +128,7 @@ MaxNumType<10>::create();
 ```
 
 ```js
-  myNumber: 6;
+  myNumber 6
 ```
 
 ### RangeNumType<int N1, int N2>
@@ -140,7 +140,7 @@ RangeNumType<10, 20>::create();
 ```
 
 ```js
-  myNumber: 12;
+  myNumber 12
 ```
 
 ### MinStrType<int S1>
@@ -152,7 +152,7 @@ MinStrType<3>::create();
 ```
 
 ```js
-  myString: "hello there";
+  myString "hello there"
 ```
 
 ### StrRegexType
@@ -164,7 +164,7 @@ StrRegexType::create("*");
 ```
 
 ```js
-  myString: "I dont know how regex works";
+  myString "I dont know how regex works"
 ```
 
 ### Custom Validation Types
@@ -200,10 +200,11 @@ Usage
 
 This will work as (ignore the duplicate name error):
 
-```
-  myStr: "hello world";
+```py
+  myStr "hello world"
 
-  myStr: "hello mauro";
+  myStr "hello mauro"
 
-  myStr: "goodbye :("; # error!
+  # error!
+  myStr "goodbye :("
 ```

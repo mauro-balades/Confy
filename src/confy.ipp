@@ -402,19 +402,18 @@ std::vector<std::string> utils::split(std::string str, const std::string& delim)
 namespace parser_internal {
 
 #define PARSER_NEXT_CHAR() \
-  SKIP_WHITESPACE(); \
+  SKIP_WHITESPACE(false); \
   if (!(char_index >= config.size())) { \
     pos.column++; \
     char_index++; \
   } \
 
-#define SKIP_WHITESPACE() \
-  while (config[char_index] == ' ' || config[char_index] == '\t' || config[char_index] == '\n') { \
+#define SKIP_WHITESPACE(and_newline) \
+  while (config[char_index] == ' ' || config[char_index] == '\t' || (and_newline && config[char_index] == '\n')) { \
+    pos.column++; \
     if (config[char_index] == '\n') { \
       pos.line++; \
       pos.column = 1; \
-    } else { \
-      pos.column++; \
     } \
     char_index++; \
   } \
@@ -424,11 +423,10 @@ namespace parser_internal {
     } \
     pos.line++; \
     pos.column = 1; \
-    char_index++; \
-  }
+  } 
 
 #define PARSER_EXPECT_CHAR(c) \
-  SKIP_WHITESPACE(); \
+  SKIP_WHITESPACE(false); \
   if (config[char_index] != c) { \
     return create_error("Expected '" + std::string(1, c) + "' and got '" + std::string(1, config[char_index]) + "'", pos, errors); \
   } \
@@ -436,16 +434,18 @@ namespace parser_internal {
 
 #define EXPECT_END_OF_VALUE() \
   if (!as_value) { \
-    SKIP_WHITESPACE(); \
-    if (config[char_index] != ';') { \
-      create_error("Expected ';' and got '" + std::string(1, config[char_index]) + "'", pos, errors); \
+    SKIP_WHITESPACE(false); \
+    if (config[char_index] != '\n') { \
+      create_error("Expected '<newline>' and got '" + std::string(1, config[char_index]) + "'", pos, errors); \
       return std::nullopt; \
     } \
-    PARSER_NEXT_CHAR(); \
+    pos.line++; \
+    pos.column = 1; \
+    char_index++; \
   }
 
 std::optional<std::string> get_identifier(const std::string& config, size_t& char_index, Error::Position& pos) {
-  SKIP_WHITESPACE();
+  SKIP_WHITESPACE(true);
   if (!std::isalpha(config[char_index])) {
     return std::nullopt;
   }
@@ -466,13 +466,21 @@ bool create_error(const std::string& message, Error::Position& pos, std::vector<
 std::optional<std::shared_ptr<Value>> parse_value(std::shared_ptr<ObjectType> root, const std::string& config, 
   Result::RootType& values, 
   std::vector<Error>& errors, Error::Position& pos, 
-  size_t& char_index, const std::optional<std::string>& identifier, bool as_value = false) {
-  SKIP_WHITESPACE();
+  size_t& char_index, const std::optional<std::string>& identifier, bool as_value = false, bool use_equals = true) {
+  SKIP_WHITESPACE(false);
   auto val_type = root->get(*identifier);
   if (nullptr == val_type) {
     create_error("Unknown identifier '" + *identifier + "'", pos, errors);
     return std::nullopt;
   }
+  if (use_equals) {
+    if (config[char_index] != '=') {
+      create_error("Expected '=' and got '" + std::string(1, config[char_index]) + "'", pos, errors);
+      return std::nullopt;
+    }
+    PARSER_NEXT_CHAR();
+  }
+  SKIP_WHITESPACE(false);
   if (config[char_index] == '"') {
     PARSER_NEXT_CHAR();
     std::string value;
@@ -516,13 +524,18 @@ std::optional<std::shared_ptr<Value>> parse_value(std::shared_ptr<ObjectType> ro
     return Number::create(val_type, num);
   } else if (config[char_index] == '{') {
     PARSER_NEXT_CHAR();
+    if (config[char_index] != '\n') {
+      create_error("Expected '<newline>' and got '" + std::string(1, config[char_index]) + "'", pos, errors);
+      return std::nullopt;
+    }
+    SKIP_WHITESPACE(false)
     std::unordered_map<std::string, std::shared_ptr<Value>> rvalues;
     if (!val_type->is<ObjectType>()) {
       create_error("Expected '" + val_type->name() + "' and got 'object'", pos, errors);
       return std::nullopt;
     }
     while (config[char_index] != '}') {
-      SKIP_WHITESPACE();
+      SKIP_WHITESPACE(false);
       if (config[char_index] == '}') {
         break;
       }
@@ -531,14 +544,9 @@ std::optional<std::shared_ptr<Value>> parse_value(std::shared_ptr<ObjectType> ro
         create_error("Expected identifier and got '" + std::string(1, config[char_index]) + "'", pos, errors);
         return std::nullopt;
       }
-      SKIP_WHITESPACE();
-      if (config[char_index] != ':') {
-        create_error("Expected ':' and got '" + std::string(1, config[char_index]) + "'", pos, errors);
-        return std::nullopt;
-      }
-      PARSER_NEXT_CHAR();
+      SKIP_WHITESPACE(false);
       // TODO: set the new root here!
-      auto val = parse_value(utils::as<ObjectType>(val_type), config, values, errors, pos, char_index, identifier);
+      auto val = parse_value(utils::as<ObjectType>(val_type), config, values, errors, pos, char_index, identifier, false);
       if (!val) {
         return std::nullopt;
       }
@@ -563,7 +571,7 @@ std::optional<std::shared_ptr<Value>> parse_value(std::shared_ptr<ObjectType> ro
       auto temp_root = std::make_shared<ObjectType>(std::vector<ObjectType::TypePair> {
         {"$temp", as_array->get()}
       });
-      auto val = parse_value(temp_root, config, values, errors, pos, char_index, "$temp", true);
+      auto val = parse_value(temp_root, config, values, errors, pos, char_index, "$temp", true, false);
       if (!val) {
         return std::nullopt;
       }
@@ -583,7 +591,7 @@ std::optional<std::shared_ptr<Value>> parse_value(std::shared_ptr<ObjectType> ro
     EXPECT_END_OF_VALUE();
     return Array::create(val_type, rvalues);
   }
-  create_error("Unexpected character '" + std::string(1, config[char_index]) + "'", pos, errors);
+  create_error("Expected a valid value but found '" + std::string(1, config[char_index]) + "'", pos, errors);
   return std::nullopt;
 }
 
@@ -601,10 +609,9 @@ bool parse_global_rule(std::shared_ptr<ObjectType> root, const std::string& conf
     return create_error("Unknown identifier '" + *identifier + "'", copy_pos, errors);
   }
 
-  SKIP_WHITESPACE();
-  if (config[char_index] == ':' && is_global && config[char_index + 1] != '{') {
-    PARSER_NEXT_CHAR();
-    auto val = parse_value(root, config, values, errors, pos, char_index, identifier);
+  SKIP_WHITESPACE(false);
+  if (is_global && config[char_index] != '{') {
+    auto val = parse_value(root, config, values, errors, pos, char_index, identifier, false);
     if (!val) {
       return EXIT_FAILURE;
     }
@@ -613,15 +620,13 @@ bool parse_global_rule(std::shared_ptr<ObjectType> root, const std::string& conf
   }
 
   if (!is_global) {
-    PARSER_EXPECT_CHAR(':');
-    PARSER_NEXT_CHAR();
   }
 
   PARSER_EXPECT_CHAR('{');
   char_index--; // We need to reparse the '{' character
 
   // It's the same syntax as the global rule
-  auto val = parse_value(root, config, values, errors, pos, char_index, identifier);
+  auto val = parse_value(root, config, values, errors, pos, char_index, identifier, false, false);
   if (!val) {
     return EXIT_FAILURE;
   }
