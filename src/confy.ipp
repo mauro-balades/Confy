@@ -450,7 +450,7 @@ std::optional<std::string> get_identifier(const std::string& config, size_t& cha
     return std::nullopt;
   }
   std::string identifier;
-  while (std::isalnum(config[char_index]) || config[char_index] == '_') {
+  while (std::isalnum(config[char_index]) || config[char_index] == '_' || config[char_index] == '-') {
     identifier += config[char_index];
     pos.column++;
     char_index++;
